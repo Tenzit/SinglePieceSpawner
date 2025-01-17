@@ -1,19 +1,13 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+extern "C"
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
-    return TRUE;
-}
+	__declspec(dllexport) void __cdecl Init(const char *path, const HelperFunctions &helperFunctions)
+	{
+		// Executed at startup, contains helperFunctions and the path to your mod (useful for getting the config file.)
+		// This is where we override functions, replace static data, etc.
+	}
 
+	__declspec(dllexport) ModInfo SA2ModInfo = { ModLoaderVer }; // This is needed for the Mod Loader to recognize the DLL.
+}

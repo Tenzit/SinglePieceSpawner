@@ -1,9 +1,12 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
 #include <vector>
+#include <string>
+#include <sstream>
 
 std::vector<int> piecelist = { 0x0001, 0x0000, 0x0004, 0x000A };
 int piecelist_idx = 0;
+std::vector<std::string> hint_text_split;
 
 enum PieceTypes {
 	Piece_1,
@@ -25,6 +28,7 @@ DataPointer(struct EmeraldHintOffset*, HintOffsetPtr, 0x1af016c);
 DataPointer(char *, HintText, 0x1af0170);
 void __cdecl GetHintText(uint8_t maj_id, uint8_t min_id)
 {
+	hint_text_split.clear();
 	int hintoffsetidx = 0;
 	struct EmeraldHintOffset hint_offset;
 	do {
@@ -41,6 +45,13 @@ void __cdecl GetHintText(uint8_t maj_id, uint8_t min_id)
 	char * hint3 = HintText + ((uint32_t*)HintText)[hint_offset.hint3_offset] + 3;
 	if (hint3[0] == '\a')
 		hint3 = hint3 + 1;
+
+
+	std::stringstream ss(hint1);
+	std::string to;
+	while (std::getline(ss, to, '\n')) {
+		hint_text_split.push_back(to);
+	}
 	PrintDebug("Hint 1: %s", hint1);
 	PrintDebug("Hint 2: %s", hint2);
 	PrintDebug("Hint 3: %s", hint3);
@@ -151,6 +162,18 @@ __declspec(naked) void Case5_Swap() {
 	}
 }
 
+signed char GetCharacterLevel() {
+	for (int i = 0; i < 33; i++)
+	{
+		if (CurrentLevel == StageSelectLevels[i].Level)
+		{
+			return StageSelectLevels[i].Character;
+		}
+	}
+
+	return -1;
+}
+HelperFunctions helpers;
 extern "C"
 {
 	__declspec(dllexport) void __cdecl Init(const char *path, const HelperFunctions &helperFunctions)
@@ -159,6 +182,17 @@ extern "C"
 		// This is where we override functions, replace static data, etc.
 		WriteJump(EmeraldLocations_1POr2PGroup3, GenerateEmeralds_r);
 		WriteJump((void *)0x739e6c, Case5_Swap); // Case 5 of the Emeralds update thing
+		helpers = helperFunctions;
+	}
+
+	__declspec(dllexport) void __cdecl OnFrame() {
+		if ((GetCharacterLevel() == Characters_Rouge || GetCharacterLevel() == Characters_Knuckles) && EmeraldManagerObj2 && GameState != GameStates_Loading) {
+			int y = 0;
+			for (std::string str : hint_text_split) {
+				helpers.DisplayDebugStringFormatted(NJM_LOCATION(0, y), "%s", str.c_str());
+				y++;
+			}
+		}
 	}
 
 	__declspec(dllexport) ModInfo SA2ModInfo = { ModLoaderVer }; // This is needed for the Mod Loader to recognize the DLL.

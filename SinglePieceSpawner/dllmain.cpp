@@ -161,7 +161,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 void __cdecl IncrementPiecelist() {
 	listidx_map.at((LevelIDs)CurrentLevel) = listidx_map.at((LevelIDs)CurrentLevel) + 1;
 
-	if (listidx_map.at((LevelIDs)CurrentLevel) > piecelist_map.at((LevelIDs)CurrentLevel).size()) {
+	if (listidx_map.at((LevelIDs)CurrentLevel) >= piecelist_map.at((LevelIDs)CurrentLevel).size()) {
 		PrintDebug("[Single Piece Spawner] You've gone through all pieces in list for level %d!", CurrentLevel);
 		PrintDebug("[Single Piece Spawner] If you continue in this level, you will start from the beginning of the list!");
 		listidx_map.at((LevelIDs)CurrentLevel) = 0;

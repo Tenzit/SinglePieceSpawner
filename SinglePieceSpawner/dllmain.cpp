@@ -1,12 +1,21 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
+#include "IniFile.hpp"
 #include <vector>
 #include <string>
 #include <sstream>
+#include <map>
+#include <unordered_map>
+#include <iostream>
+#include <fstream>
 
 std::vector<int> piecelist = { 0x0001, 0x0000, 0x0004, 0x000A };
 int piecelist_idx = 0;
 std::vector<std::string> hint_text_split;
+bool clear_on_collect;
+
+std::map<LevelIDs, std::vector<int>> piecelist_map;
+std::map<LevelIDs, int> listidx_map;
 
 enum PieceTypes {
 	Piece_1,
@@ -52,16 +61,19 @@ void __cdecl GetHintText(uint8_t maj_id, uint8_t min_id)
 	while (std::getline(ss, to, '\n')) {
 		hint_text_split.push_back(to);
 	}
-	PrintDebug("Hint 1: %s", hint1);
-	PrintDebug("Hint 2: %s", hint2);
-	PrintDebug("Hint 3: %s", hint3);
+	PrintDebug("[Single Piece Spawner] Hint 1: %s", hint1);
+	PrintDebug("[Single Piece Spawner] Hint 2: %s", hint2);
+	PrintDebug("[Single Piece Spawner] Hint 3: %s", hint3);
 }
 
 void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 {
-	PrintDebug("At start of piecegen");
-	uint8_t maj_id = piecelist[piecelist_idx] & 0xff;
-	uint8_t min_id = (piecelist[piecelist_idx] >> 8) & 0xff;
+	PrintDebug("[Single Piece Spawner] Spawning Piece 0x%.4x (Number %d) in level %d", piecelist_map.at((LevelIDs)CurrentLevel).at(listidx_map.at((LevelIDs)CurrentLevel)), listidx_map.at((LevelIDs)CurrentLevel), CurrentLevel);
+
+	int piece_id = piecelist_map.at((LevelIDs)CurrentLevel).at(listidx_map.at((LevelIDs)CurrentLevel));
+
+	uint8_t maj_id = piece_id & 0xff;
+	uint8_t min_id = (piece_id >> 8) & 0xff;
 	PieceTypes piece_type;
 
 	switch (maj_id) {
@@ -77,6 +89,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 	case 0x4:
 	case 0x6:
 	case 0x7: // Dig pieces in PH/EQ
+	case 0x8:
 		piece_type = Piece_3;
 		break;
 	case 0xa:
@@ -98,7 +111,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 		do {
 			if (offset > emerald_manager->byte6) {
 				// panic
-				PrintDebug("In infinite loop P1 oops");
+				PrintDebug("[Single Piece Spawner] In infinite loop P1 oops");
 			}
 			emerald = emerald_manager->ptr_a[offset];
 			offset = offset + 1;
@@ -111,7 +124,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 		do {
 			if (offset > emerald_manager->byte9) {
 				// panic
-				PrintDebug("In infinite loop Enemy oops");
+				PrintDebug("[Single Piece Spawner] In infinite loop Enemy oops");
 			}
 			emerald = emerald_manager->ptr_d[offset];
 			offset = offset + 1;
@@ -123,7 +136,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 		do {
 			if (offset > emerald_manager->byte7) {
 				// panic
-				PrintDebug("In infinite loop P2 oops");
+				PrintDebug("[Single Piece Spawner] In infinite loop P2 oops");
 			}
 			emerald = emerald_manager->ptr_b[offset];
 			offset = offset + 1;
@@ -135,7 +148,7 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 		do {
 			if (offset > emerald_manager->byte8) {
 				// panic
-				PrintDebug("In infinite loop P3 oops");
+				PrintDebug("[Single Piece Spawner] In infinite loop P3 oops");
 			}
 			emerald = emerald_manager->ptr_c[offset];
 			offset = offset + 1;
@@ -144,17 +157,30 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 		break;
 	}
 	GetHintText(maj_id, min_id);
-	PrintDebug("At end of piece gen");
 	return;
 }
 
 void __cdecl IncrementPiecelist() {
-	piecelist_idx = (piecelist_idx + 1) % piecelist.size();
+	//piecelist_idx = (piecelist_idx + 1) % piecelist.size();
+	listidx_map.at((LevelIDs)CurrentLevel) = listidx_map.at((LevelIDs)CurrentLevel) + 1;
+
+	if (listidx_map.at((LevelIDs)CurrentLevel) > piecelist_map.at((LevelIDs)CurrentLevel).size()) {
+		PrintDebug("[Single Piece Spawner] You've gone through all pieces in list for level %d!", CurrentLevel);
+		PrintDebug("[Single Piece Spawner] If you continue in this level, you will start from the beginning of the list!");
+		listidx_map.at((LevelIDs)CurrentLevel) = 0;
+	}
+}
+
+void __cdecl ClearHintText() {
+	if (clear_on_collect) {
+		hint_text_split.clear();
+	}
 }
 
 const void *const loc_739f8e = (void*)0x739f8e;
 __declspec(naked) void Case5_Swap() {
 	IncrementPiecelist();
+	ClearHintText();
 	__asm
 	{
 		mov byte ptr[edi], 0x8
@@ -173,7 +199,31 @@ signed char GetCharacterLevel() {
 
 	return -1;
 }
+
+void __cdecl ReadCsvFile(std::string path, LevelIDs level) {
+	std::ifstream file(path);
+	std::string line;
+	std::vector<int> pieces;
+
+	if (!file.is_open()) {
+		PrintDebug("[Single Piece Spawner] Error opening file %s", path.c_str());
+		return;
+	}
+	PrintDebug(" Hello ");
+	while (std::getline(file, line)) {
+		int i = stoi(line, 0, 16);
+		pieces.push_back(i);
+	}
+	PrintDebug(" Hello 2");
+	piecelist_map[level] = pieces;
+	PrintDebug(" Hello 3");
+	listidx_map[level] = 0;
+	PrintDebug(" Hello 4");
+}
+
 HelperFunctions helpers;
+int y_offset;
+bool display_hint;
 extern "C"
 {
 	__declspec(dllexport) void __cdecl Init(const char *path, const HelperFunctions &helperFunctions)
@@ -183,13 +233,35 @@ extern "C"
 		WriteJump(EmeraldLocations_1POr2PGroup3, GenerateEmeralds_r);
 		WriteJump((void *)0x739e6c, Case5_Swap); // Case 5 of the Emeralds update thing
 		helpers = helperFunctions;
+
+		const IniFile* config = new IniFile(std::string(path) + "\\config.ini");
+
+		display_hint = config->getBool("HintDisplay", "DisplayHint", true);
+		y_offset = config->getInt("HintDisplay", "YOffset", 0);
+		int text_size = config->getInt("HintDisplay", "TextSize", 12);
+		clear_on_collect = config->getBool("HintDisplay", "ClearHint", false);
+
+		helperFunctions.SetDebugFontSize(text_size);
+
+		delete config;
+
+		ReadCsvFile(std::string(path) + "\\pieces\\wild_canyon.csv", LevelIDs_WildCanyon);
+		ReadCsvFile(std::string(path) + "\\pieces\\pumpkin_hill.csv", LevelIDs_PumpkinHill);
+		ReadCsvFile(std::string(path) + "\\pieces\\aquatic_mine.csv", LevelIDs_AquaticMine);
+		ReadCsvFile(std::string(path) + "\\pieces\\death_chamber.csv", LevelIDs_DeathChamber);
+		ReadCsvFile(std::string(path) + "\\pieces\\meteor_herd.csv", LevelIDs_MeteorHerd);
+		ReadCsvFile(std::string(path) + "\\pieces\\dry_lagoon.csv", LevelIDs_DryLagoon);
+		ReadCsvFile(std::string(path) + "\\pieces\\egg_quarters.csv", LevelIDs_EggQuarters);
+		ReadCsvFile(std::string(path) + "\\pieces\\security_hall.csv", LevelIDs_SecurityHall);
+		ReadCsvFile(std::string(path) + "\\pieces\\mad_space.csv", LevelIDs_MadSpace);
+
 	}
 
 	__declspec(dllexport) void __cdecl OnFrame() {
-		if ((GetCharacterLevel() == Characters_Rouge || GetCharacterLevel() == Characters_Knuckles) && EmeraldManagerObj2 && GameState != GameStates_Loading) {
+		if ((GetCharacterLevel() == Characters_Rouge || GetCharacterLevel() == Characters_Knuckles) && EmeraldManagerObj2 && GameState != GameStates_Loading && display_hint) {
 			int y = 0;
 			for (std::string str : hint_text_split) {
-				helpers.DisplayDebugStringFormatted(NJM_LOCATION(0, y), "%s", str.c_str());
+				helpers.DisplayDebugStringFormatted(NJM_LOCATION(0, y+y_offset), "%s", str.c_str());
 				y++;
 			}
 		}

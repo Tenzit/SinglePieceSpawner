@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<ConfigSchema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.sonicretro.org">
+	<Groups>
+		<Group name="HintDisplay" display="1. Hint Display">
+			<Property name="DisplayHint" display="Display Hint" type="bool" defaultvalue="true">
+				<HelpText>Display Hint 1 on screen.</HelpText>
+			</Property>	
+			<Property name="YOffset" display="Y Offset" type="int" defaultvalue="0"> 
+				<HelpText>How far down the hint should be on screen.</HelpText>
+			</Property>
+			<Property name="TextSize" display="Text Size" type="int" defaultvalue="12">
+				<HelpText>How large the hint should be.</HelpText>
+			</Property>
+			<Property name="ClearHint" display="Clear Hint" type="bool" defaultvalue="false">
+				<HelpText>Clear the hint text once the piece is collected</HelpText>
+			</Property>
+	</Group>
+</Groups>
+</ConfigSchema>

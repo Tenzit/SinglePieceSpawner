@@ -9,8 +9,6 @@
 #include <iostream>
 #include <fstream>
 
-std::vector<int> piecelist = { 0x0001, 0x0000, 0x0004, 0x000A };
-int piecelist_idx = 0;
 std::vector<std::string> hint_text_split;
 bool clear_on_collect;
 
@@ -161,7 +159,6 @@ void __cdecl GenerateEmeralds_r(EmeManObj2 *emerald_manager)
 }
 
 void __cdecl IncrementPiecelist() {
-	//piecelist_idx = (piecelist_idx + 1) % piecelist.size();
 	listidx_map.at((LevelIDs)CurrentLevel) = listidx_map.at((LevelIDs)CurrentLevel) + 1;
 
 	if (listidx_map.at((LevelIDs)CurrentLevel) > piecelist_map.at((LevelIDs)CurrentLevel).size()) {
@@ -209,16 +206,12 @@ void __cdecl ReadCsvFile(std::string path, LevelIDs level) {
 		PrintDebug("[Single Piece Spawner] Error opening file %s", path.c_str());
 		return;
 	}
-	PrintDebug(" Hello ");
 	while (std::getline(file, line)) {
 		int i = stoi(line, 0, 16);
 		pieces.push_back(i);
 	}
-	PrintDebug(" Hello 2");
 	piecelist_map[level] = pieces;
-	PrintDebug(" Hello 3");
 	listidx_map[level] = 0;
-	PrintDebug(" Hello 4");
 }
 
 HelperFunctions helpers;
